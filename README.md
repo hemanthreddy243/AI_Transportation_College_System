@@ -4,6 +4,28 @@ Students vote each evening whether they'll take the bus tomorrow. When voting cl
 agent combines stops into the **fewest buses that fit everyone without exceeding any bus's seats**,
 assigns every student to a specific bus, and that student can then **track their bus live**.
 
+**Live demo:** https://smart-bus-48vw.onrender.com. Log in as `admin` / `admin123`, a driver
+(`driver1` / `driver123`) or any pre-registered student (`student123`). The free plan sleeps when
+idle, so the first load can take about 30 s. Demo data resets on every restart.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/student_live.gif" width="300" alt="Student watching their bus approach live, with ETA and stop timeline">
+</p>
+
+| Admin: routes planned and live fleet | Student: where is my bus? |
+|---|---|
+| ![Bus plan with 15 of 30 buses on real road routes and live positions](docs/admin_plan_live.png) | ![Student card: arriving in 5 min, 2.7 km away](docs/student_live.png) |
+
+| Students per stop (votes) | AI briefing for the admin |
+|---|---|
+| ![Yes-votes per stop](docs/admin_stop_counts.png) | ![Plan briefing](docs/admin_ai_briefing.png) |
+
+| Driver: route and GPS sharing | Registration checked against college records |
+|---|---|
+| ![Driver page](docs/driver.png) | ![Registration page](docs/register.png) |
+
 ## How it works
 
 ```
@@ -151,3 +173,7 @@ The fee status is re-checked at every vote, so a student whose fee lapses can't 
 ```bash
 cd backend && pytest
 ```
+
+## License
+
+[MIT](LICENSE)
