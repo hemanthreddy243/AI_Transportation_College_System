@@ -38,7 +38,7 @@ Requirements: Python 3.11+, Node 18+.
 cd backend
 python -m venv .venv
 .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # requirements.txt alone is enough to run the app
 uvicorn app.main:app --reload --port 8000
 
 # frontend (http://localhost:5173)
@@ -94,6 +94,19 @@ The simulator drives every planned bus along its real road route, with traffic j
 time at stops, GPS jitter, signal dropouts and an optional detour. `--speedup` runs trips faster
 than real time; speeds and ETAs are then reported in simulated time.
 `python demo_browser.py <shots_dir>` clicks through the whole app in visible Edge windows.
+
+## Deploy (Render, free)
+
+The repo is ready for [Render](https://render.com): `Dockerfile` builds the frontend and backend
+into one service, and `render.yaml` describes it.
+
+1. On render.com, choose **New → Blueprint** and pick this repository.
+2. Optionally, add `ANTHROPIC_API_KEY` in the service's Environment tab to turn on AI briefings.
+3. Every push to `main` redeploys automatically. Day-to-day work happens on `dev`, and
+   `main` is updated only when something is ready.
+
+On the free plan the service sleeps when idle, so the first visit takes about 30 s, and demo data
+is re-created on every restart.
 
 ## AI briefing (optional)
 

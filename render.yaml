@@ -1,0 +1,16 @@
+# Render Blueprint: render.com -> New -> Blueprint -> pick this repo
+services:
+  - type: web
+    name: smart-bus
+    runtime: docker
+    plan: free
+    branch: main          # only main goes live; work happens on dev
+    autoDeploy: true
+    healthCheckPath: /api/stops
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SEED_SCALE
+        value: demo       # or "large" (32 stops, 1500 students, 30 buses)
+      - key: ANTHROPIC_API_KEY
+        sync: false       # optional: paste your key in the Render dashboard for AI briefings

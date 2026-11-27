@@ -26,7 +26,7 @@ from .seed import seed
 
 @asynccontextmanager
 async def lifespan(_app):
-    seed()
+    seed(scale=config.SEED_SCALE)
     yield
 
 

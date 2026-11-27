@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest>=8
+playwright>=1.45   # demo_browser.py / capture_screens.py
+pillow>=10         # capture_screens.py (GIF)

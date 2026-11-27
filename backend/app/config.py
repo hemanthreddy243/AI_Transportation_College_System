@@ -51,4 +51,6 @@ BUS_KM_PER_LITRE = float(os.getenv("BUS_KM_PER_LITRE", "4.0"))
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-opus-5-5")
 AI_ENABLED = os.getenv("AI_ENABLED", "1") == "1"
 
+SEED_SCALE = os.getenv("SEED_SCALE", "demo")  # demo data created on first start
+
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
