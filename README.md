@@ -153,6 +153,24 @@ time at stops, GPS jitter, signal dropouts and an optional detour. `--speedup` r
 than real time; speeds and ETAs are then reported in simulated time.
 `python demo_browser.py <shots_dir>` clicks through the whole app in visible Edge windows.
 
+## Mobile app
+
+- **Install from the browser (PWA):** open the site on a phone. On Android, tap **📲 Install app**
+  (or browser menu → Install app). On iPhone, tap **Share → Add to Home Screen**. The app gets a
+  home-screen icon, opens full screen, and updates itself.
+- **Android app (APK):** [mobile/](mobile/) is a Capacitor app that opens the hosted site, so every
+  deploy updates the app without a store release. It asks for location permission, which drivers
+  need to share GPS.
+
+  ```bash
+  cd mobile && npm install
+  npx cap sync android
+  cd android && gradlew assembleDebug    # needs Android Studio / Android SDK
+  # -> android/app/build/outputs/apk/debug/app-debug.apk
+  ```
+  To publish on the Play Store, build a signed release (`gradlew bundleRelease` with your keystore)
+  and upload the `.aab` file. The site URL is set in `mobile/capacitor.config.json`.
+
 ## Deploy (Render, free)
 
 The repo is ready for [Render](https://render.com): `Dockerfile` builds the frontend and backend

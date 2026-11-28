@@ -1,0 +1,13 @@
+{
+  "appId": "in.smartbus.app",
+  "appName": "Smart Bus",
+  "webDir": "www",
+  "server": {
+    "url": "https://smart-bus-48vw.onrender.com",
+    "cleartext": false,
+    "errorPath": "index.html"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

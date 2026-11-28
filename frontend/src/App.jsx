@@ -7,10 +7,25 @@ import StudentHome from "./pages/StudentHome.jsx";
 import AdminHome from "./pages/AdminHome.jsx";
 import DriverHome from "./pages/DriverHome.jsx";
 
+// Shows an "Install app" button when the browser offers to install the PWA (Android Chrome/Edge, desktop).
+function useInstallPrompt() {
+  const [evt, setEvt] = useState(null);
+  useEffect(() => {
+    const onPrompt = (e) => { e.preventDefault(); setEvt(e); };
+    const onInstalled = () => setEvt(null);
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => { window.removeEventListener("beforeinstallprompt", onPrompt); window.removeEventListener("appinstalled", onInstalled); };
+  }, []);
+  const install = async () => { evt.prompt(); await evt.userChoice; setEvt(null); };
+  return evt ? install : null;
+}
+
 export default function App() {
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(Boolean(auth.token));
   const navigate = useNavigate();
+  const install = useInstallPrompt();
 
   const loadMe = async () => {
     if (!auth.token) { setMe(null); setLoading(false); return; }
@@ -32,12 +47,15 @@ export default function App() {
     <>
       <header className="topbar">
         <div className="brand"><span className="logo">🚌</span> Smart Bus</div>
+        <div className="topbar-right">
+          {install && <button className="btn small" onClick={install}>📲 Install app</button>}
         {me && (
-          <div className="topbar-right">
+          <>
             <span className="muted hide-sm">{me.name} · {me.role}</span>
             <button className="btn ghost" onClick={logout}>Log out</button>
-          </div>
+          </>
         )}
+        </div>
       </header>
       <main className="container">
         <Routes>

@@ -559,6 +559,13 @@ _dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 if _dist.exists():
     app.mount("/assets", StaticFiles(directory=_dist / "assets"), name="assets")
 
+    _dist_root = _dist.resolve()
+
     @app.get("/{path:path}", include_in_schema=False)
     def spa(path: str):
-        return FileResponse(_dist / "index.html")
+        # Real files from the build (sw.js, manifest, icons, favicon); everything else is the React app.
+        candidate = (_dist_root / path).resolve()
+        if path and candidate.is_file() and _dist_root in candidate.parents:
+            headers = {"Cache-Control": "no-cache"} if path == "sw.js" else None
+            return FileResponse(candidate, headers=headers)
+        return FileResponse(_dist_root / "index.html")
