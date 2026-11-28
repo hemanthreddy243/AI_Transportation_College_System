@@ -20,6 +20,7 @@ from .auth import create_token, current_user, hash_password, require_role, verif
 from .college_db import get_directory
 from .db import get_db, session
 from .hub import hub
+from . import clock
 from . import tracking
 from .planner import BusSpec, StopDemand, plan_routes
 from .roads import road_route
@@ -39,7 +40,7 @@ app.add_middleware(
 
 
 def now_iso() -> str:
-    return datetime.now().replace(microsecond=0).isoformat()
+    return clock.now_iso()
 
 
 # ---------------------------------------------------------------- helpers
@@ -338,7 +339,10 @@ def create_poll(body: PollIn, _=Depends(admin), db=Depends(get_db)):
 @app.post("/api/admin/polls/{poll_id}/close")
 def close_poll(poll_id: int, _=Depends(admin), db=Depends(get_db)):
     get_poll(db, poll_id)
-    db.execute("UPDATE polls SET closes_at = ? WHERE id = ? AND closes_at > ?", (now_iso(), poll_id, now_iso()))
+    now = now_iso()
+    # Closing also works on a window that hasn't opened yet (it simply never opens).
+    db.execute("UPDATE polls SET opens_at = MIN(opens_at, ?), closes_at = ? WHERE id = ? AND closes_at > ?",
+               (now, now, poll_id, now))
     return {"ok": True}
 
 

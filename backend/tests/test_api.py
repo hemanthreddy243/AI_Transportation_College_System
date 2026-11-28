@@ -303,3 +303,29 @@ def test_fee_payment_and_savings(client):
     assert client.get("/api/admin/savings", headers=admin).json()["totals"]["trips"] == 1
     # students can't see admin money pages
     assert client.get("/api/admin/savings", headers=me).status_code == 403
+
+
+def test_closing_a_scheduled_window_allows_planning(client, admin):
+    # Admin schedules tomorrow's voting for later today, then closes it early (bug seen on Render).
+    from app import clock
+    from datetime import timedelta
+    now = clock.now()
+    r = client.post("/api/admin/polls", headers=admin, json={
+        "trip_date": (now + timedelta(days=1)).date().isoformat(),
+        "opens_at": (now + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M"),
+        "closes_at": (now + timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M")})
+    pid = r.json()["id"]
+    statuses = {p["id"]: p["status"] for p in client.get("/api/admin/polls", headers=admin).json()}
+    assert statuses[pid] == "scheduled"
+    client.post(f"/api/admin/polls/{pid}/close", headers=admin)
+    statuses = {p["id"]: p["status"] for p in client.get("/api/admin/polls", headers=admin).json()}
+    assert statuses[pid] == "closed"
+    assert client.post(f"/api/admin/polls/{pid}/plan", headers=admin).status_code == 200
+
+
+def test_clock_uses_college_time_zone():
+    from app import clock, config
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+    expected = datetime.now(timezone.utc).astimezone(ZoneInfo(config.APP_TIMEZONE)).replace(tzinfo=None)
+    assert abs((clock.now() - expected).total_seconds()) < 5

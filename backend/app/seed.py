@@ -10,7 +10,7 @@ import random
 import sys
 from datetime import datetime, timedelta
 
-from . import config
+from . import clock, config
 from .auth import hash_password
 from .college_db import MockSqliteDirectory
 from .db import init_schema, session
@@ -134,7 +134,7 @@ def seed(reset: bool = False, scale: str = "demo"):
         seed_demo_savings(db)
 
         # An open poll for tomorrow's morning trip.
-        now = datetime.now().replace(second=0, microsecond=0)
+        now = clock.now().replace(second=0, microsecond=0)
         db.execute(
             "INSERT INTO polls (trip_date, opens_at, closes_at) VALUES (?,?,?)",
             ((now + timedelta(days=1)).date().isoformat(),

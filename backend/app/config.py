@@ -67,6 +67,7 @@ BUS_KM_PER_LITRE = float(os.getenv("BUS_KM_PER_LITRE", "4.0"))
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-opus-5-5")
 AI_ENABLED = os.getenv("AI_ENABLED", "1") == "1"
 
+APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Kolkata")  # college local time (servers run on UTC)
 SEED_SCALE = os.getenv("SEED_SCALE", "demo")  # demo data created on first start
 
 # Payments: Razorpay. Leave the keys empty to use the built-in demo checkout.

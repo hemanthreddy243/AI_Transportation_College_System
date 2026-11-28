@@ -23,7 +23,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from . import config
+from . import clock, config
 from .auth import require_role
 from .college_db import get_directory
 from .db import get_db
@@ -44,7 +44,7 @@ PAY_METHODS = {"upi": "UPI", "card": "Card", "netbanking": "Net banking"}
 
 
 def now_iso() -> str:
-    return datetime.now().replace(microsecond=0).isoformat()
+    return clock.now_iso()
 
 
 # ---------------------------------------------------------------- settings
@@ -127,7 +127,7 @@ def seed_demo_savings(db, days: int = 22, rng: random.Random | None = None):
     rng = rng or random.Random(7)
     fleet = active_fleet(db) or 10
     price = float(DEFAULT_SETTINGS["diesel_price"])
-    d = date.today()
+    d = clock.today()
     added = 0
     while added < days:
         d -= timedelta(days=1)
