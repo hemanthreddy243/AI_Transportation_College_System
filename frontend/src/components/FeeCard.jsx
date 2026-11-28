@@ -21,7 +21,7 @@ const METHODS = [
   { id: "netbanking", label: "Net banking", icon: "🏦" },
 ];
 
-function Receipt({ r, me, year }) {
+function Receipt({ r, me, year, testMode }) {
   return (
     <div className="receipt" id="fee-receipt">
       <div className="row between"><strong>Transport fee receipt</strong><span className="badge ok">Paid</span></div>
@@ -33,7 +33,9 @@ function Receipt({ r, me, year }) {
         <dt>Reference</dt><dd><code>{r.reference}</code></dd>
         <dt>Date</dt><dd>{fmtDateTime(r.created_at)}</dd>
       </dl>
-      <p className="small muted">Demo receipt: no real money was charged.</p>
+      {r.gateway !== "razorpay" && <p className="small muted">Demo receipt: no real money was charged.</p>}
+      {r.gateway === "razorpay" && testMode && <p className="small muted">Razorpay test mode: no real money was charged.</p>}
+      {r.gateway === "razorpay" && !testMode && <p className="small muted">Paid securely via Razorpay to the college.</p>}
     </div>
   );
 }
@@ -116,7 +118,7 @@ export default function FeeCard({ me, onPaid }) {
       {fee.paid && fee.receipt && (
         <details>
           <summary className="small">View receipt</summary>
-          <Receipt r={fee.receipt} me={me} year={fee.academic_year} />
+          <Receipt r={fee.receipt} me={me} year={fee.academic_year} testMode={fee.test_mode} />
           <button className="btn small" onClick={() => window.print()}>Print / save as PDF</button>
         </details>
       )}
@@ -150,7 +152,7 @@ export default function FeeCard({ me, onPaid }) {
             {stage === "done" && fee.receipt && (
               <>
                 <h3>✅ Payment successful</h3>
-                <Receipt r={fee.receipt} me={me} year={fee.academic_year} />
+                <Receipt r={fee.receipt} me={me} year={fee.academic_year} testMode={fee.test_mode} />
                 <div className="row between">
                   <button className="btn" onClick={() => window.print()}>Print receipt</button>
                   <button className="btn primary" onClick={close}>Done</button>
