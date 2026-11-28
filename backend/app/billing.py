@@ -1,8 +1,8 @@
 """Transport-fee payments (demo checkout) and the savings ledger.
 
-Payments: students pay their transport fee to the college. Until a real payment gateway
-(e.g. Razorpay/Cashfree, settling into the college's account) is connected, checkout is a
-DEMO: no money moves and no card/UPI details are collected. A successful payment marks
+Payments: students pay their transport fee to the college through Razorpay when keys are
+configured (test keys = real checkout, no real money). Without keys, checkout is a DEMO:
+no money moves and no card/UPI details are collected. A successful payment marks
 the fee as paid in the college records through the CollegeDirectory adapter.
 
 Savings: every published plan is recorded with what it saved versus the college's old
@@ -11,11 +11,16 @@ the platform fee charged to the college (a % of savings).
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
+import logging
 import random
 import secrets
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from . import config
@@ -23,6 +28,7 @@ from .auth import require_role
 from .college_db import get_directory
 from .db import get_db
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 admin = require_role("admin")
 student = require_role("student")
@@ -200,12 +206,16 @@ def my_fee(user=Depends(student), db=Depends(get_db)):
         "amount": int(s["transport_fee"]),
         "paid": bool(rec and rec.fee_paid),
         "receipt": _receipt(db, user["username"], s["academic_year"]),
-        "demo": True,
+        "gateway": gateway(),
+        "test_mode": config.RAZORPAY_KEY_ID.startswith("rzp_test_"),
+        "demo": gateway() == "demo",
     }
 
 
 @router.post("/api/me/fee/pay")
 def pay_fee(body: PayIn, user=Depends(student), db=Depends(get_db)):
+    if gateway() != "demo":
+        raise HTTPException(400, "Online payments go through Razorpay; use the Pay now button.")
     s = get_settings(db)
     directory = get_directory()
     rec = directory.lookup(user["username"])
@@ -217,8 +227,8 @@ def pay_fee(body: PayIn, user=Depends(student), db=Depends(get_db)):
     # would be marked paid only after the gateway's signed webhook confirms the payment.
     ref = "DEMO-" + secrets.token_hex(4).upper()
     cur = db.execute(
-        """INSERT INTO payments (username, academic_year, amount, method, status, reference, created_at)
-           VALUES (?,?,?,?, 'success', ?, ?)""",
+        """INSERT INTO payments (username, academic_year, amount, method, status, reference, created_at, gateway)
+           VALUES (?,?,?,?, 'success', ?, ?, 'demo')""",
         (user["username"], s["academic_year"], int(s["transport_fee"]), body.method, ref, now_iso()),
     )
     directory.mark_fee_paid(user["username"])
@@ -237,7 +247,7 @@ def payments_report(_=Depends(admin), db=Depends(get_db)):
     ).fetchone()
     names = {x.student_id: x.name for x in students}
     recent = [{**dict(r), "name": names.get(r["username"], "")} for r in db.execute(
-        "SELECT * FROM payments ORDER BY id DESC LIMIT 50")]
+        "SELECT * FROM payments WHERE status = 'success' ORDER BY id DESC LIMIT 50")]
     return {
         "academic_year": s["academic_year"],
         "fee": fee,
@@ -248,5 +258,130 @@ def payments_report(_=Depends(admin), db=Depends(get_db)):
         "online_count": online[0],
         "online_amount": online[1],
         "recent": recent,
-        "demo": True,
+        "gateway": gateway(),
+        "test_mode": config.RAZORPAY_KEY_ID.startswith("rzp_test_"),
+        "demo": gateway() == "demo",
     }
+
+
+# ---------------------------------------------------------------- Razorpay (real gateway)
+#
+# Flow: student clicks Pay -> /order creates a Razorpay order (amount fixed by the server)
+#   -> Razorpay Checkout opens in the browser -> on success the browser posts the ids and
+#   signature to /verify -> we check HMAC_SHA256(order_id|payment_id, key_secret) before
+#   marking the fee paid. The webhook does the same from Razorpay's side, so a payment still
+#   counts if the student closes the tab before /verify runs. Both paths are idempotent.
+
+def gateway() -> str:
+    return "razorpay" if config.RAZORPAY_KEY_ID and config.RAZORPAY_KEY_SECRET else "demo"
+
+
+def _rzp(method: str, path: str, **kwargs) -> dict:
+    r = httpx.request(method, f"{config.RAZORPAY_API}{path}",
+                      auth=(config.RAZORPAY_KEY_ID, config.RAZORPAY_KEY_SECRET), timeout=20, **kwargs)
+    if r.status_code >= 400:
+        try:
+            msg = r.json().get("error", {}).get("description", r.text)
+        except ValueError:
+            msg = r.text
+        raise HTTPException(502, f"Payment gateway error: {msg}")
+    return r.json()
+
+
+def _hmac_hex(secret: str, message: bytes) -> str:
+    return hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()
+
+
+def _mark_success(db, row, payment_id: str, method: str | None):
+    """Idempotent: marks a created order as paid and updates the college fee status."""
+    if row["status"] == "success":
+        return
+    db.execute("UPDATE payments SET status='success', payment_id=?, reference=?, method=COALESCE(?, method) WHERE id=?",
+               (payment_id, payment_id, method, row["id"]))
+    get_directory().mark_fee_paid(row["username"])
+
+
+@router.post("/api/me/fee/order")
+def create_order(user=Depends(student), db=Depends(get_db)):
+    if gateway() != "razorpay":
+        raise HTTPException(400, "Razorpay is not configured; the demo checkout is in use.")
+    s = get_settings(db)
+    rec = get_directory().lookup(user["username"])
+    if rec is None:
+        raise HTTPException(404, "Student not found in college records")
+    if rec.fee_paid:
+        raise HTTPException(409, "Your transport fee for this year is already paid.")
+    amount = int(s["transport_fee"])
+    order = _rzp("POST", "/orders", json={
+        "amount": amount * 100,  # paise
+        "currency": "INR",
+        "receipt": f"fee-{user['username']}-{s['academic_year']}"[:40],
+        "notes": {"student_id": user["username"], "academic_year": s["academic_year"], "purpose": "transport fee"},
+    })
+    db.execute(
+        """INSERT INTO payments (username, academic_year, amount, method, status, reference, created_at, gateway, order_id)
+           VALUES (?,?,?, 'razorpay', 'created', ?, ?, 'razorpay', ?)""",
+        (user["username"], s["academic_year"], amount, order["id"], now_iso(), order["id"]),
+    )
+    return {
+        "key_id": config.RAZORPAY_KEY_ID, "order_id": order["id"], "amount": amount * 100, "currency": "INR",
+        "name": config.COLLEGE_DISPLAY_NAME, "description": f"Transport fee {s['academic_year']}",
+        "prefill": {"name": user["name"]}, "notes": {"student_id": user["username"]},
+    }
+
+
+class VerifyIn(BaseModel):
+    razorpay_order_id: str = Field(min_length=5, max_length=64)
+    razorpay_payment_id: str = Field(min_length=5, max_length=64)
+    razorpay_signature: str = Field(min_length=10, max_length=256)
+
+
+@router.post("/api/me/fee/verify")
+def verify_payment(body: VerifyIn, user=Depends(student), db=Depends(get_db)):
+    if gateway() != "razorpay":
+        raise HTTPException(400, "Razorpay is not configured.")
+    row = db.execute("SELECT * FROM payments WHERE order_id = ? AND username = ?",
+                     (body.razorpay_order_id, user["username"])).fetchone()
+    if row is None:
+        raise HTTPException(404, "Unknown order")
+    expected = _hmac_hex(config.RAZORPAY_KEY_SECRET, f"{body.razorpay_order_id}|{body.razorpay_payment_id}".encode())
+    if not hmac.compare_digest(expected, body.razorpay_signature):
+        db.execute("UPDATE payments SET status='failed' WHERE id=? AND status='created'", (row["id"],))
+        db.commit()
+        raise HTTPException(400, "Payment could not be verified. If money was deducted, the bank will refund it.")
+    method = None
+    try:  # extra check: the amount actually paid matches the order; also learn the method (upi/card/...)
+        pay = _rzp("GET", f"/payments/{body.razorpay_payment_id}")
+        if pay.get("order_id") != body.razorpay_order_id or int(pay.get("amount", 0)) != row["amount"] * 100:
+            raise HTTPException(400, "Payment amount does not match the order.")
+        method = pay.get("method")
+    except HTTPException as e:
+        if e.status_code == 400:
+            raise
+        log.warning("Could not fetch payment %s for details: %s", body.razorpay_payment_id, e.detail)
+    _mark_success(db, row, body.razorpay_payment_id, method)
+    return {"ok": True, "receipt": dict(db.execute("SELECT * FROM payments WHERE id = ?", (row["id"],)).fetchone())}
+
+
+@router.post("/api/payments/razorpay/webhook")
+async def razorpay_webhook(request: Request, db=Depends(get_db)):
+    """Razorpay Dashboard -> Webhooks: URL <site>/api/payments/razorpay/webhook, events
+    payment.captured and order.paid, secret = RAZORPAY_WEBHOOK_SECRET."""
+    if not config.RAZORPAY_WEBHOOK_SECRET:
+        raise HTTPException(503, "Webhook secret not configured")
+    raw = await request.body()
+    sig = request.headers.get("X-Razorpay-Signature", "")
+    if not hmac.compare_digest(_hmac_hex(config.RAZORPAY_WEBHOOK_SECRET, raw), sig):
+        raise HTTPException(400, "Bad signature")
+    event = json.loads(raw)
+    if event.get("event") not in ("payment.captured", "order.paid"):
+        return {"ignored": event.get("event")}
+    pay = event.get("payload", {}).get("payment", {}).get("entity", {})
+    row = db.execute("SELECT * FROM payments WHERE order_id = ?", (pay.get("order_id"),)).fetchone()
+    if row is None:
+        return {"ignored": "unknown order"}
+    if int(pay.get("amount", 0)) != row["amount"] * 100:
+        log.warning("Webhook amount mismatch for order %s", pay.get("order_id"))
+        return {"ignored": "amount mismatch"}
+    _mark_success(db, row, pay.get("id"), pay.get("method"))
+    return {"ok": True}

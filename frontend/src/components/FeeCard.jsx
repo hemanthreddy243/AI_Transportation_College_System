@@ -3,6 +3,18 @@ import { api, fmtDateTime } from "../api.js";
 
 export const rupees = (n) => `₹${Math.round(n ?? 0).toLocaleString("en-IN")}`;
 
+// Loads Razorpay's checkout script once, on demand.
+function loadRazorpay() {
+  if (window.Razorpay) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const el = document.createElement("script");
+    el.src = "https://checkout.razorpay.com/v1/checkout.js";
+    el.onload = resolve;
+    el.onerror = () => reject(new Error("Could not load Razorpay. Check your internet connection."));
+    document.body.appendChild(el);
+  });
+}
+
 const METHODS = [
   { id: "upi", label: "UPI", icon: "📱" },
   { id: "card", label: "Card", icon: "💳" },
@@ -47,6 +59,32 @@ export default function FeeCard({ me, onPaid }) {
     } catch (e) { setError(e.message); setStage("choose"); }
   };
 
+  // Real gateway: server creates an order, Razorpay Checkout collects the payment,
+  // and the server verifies Razorpay's signature before marking the fee paid.
+  const payRazorpay = async () => {
+    setError("");
+    try {
+      await loadRazorpay();
+      const o = await api("/me/fee/order", { method: "POST" });
+      const rzp = new window.Razorpay({
+        key: o.key_id, order_id: o.order_id, amount: o.amount, currency: o.currency,
+        name: o.name, description: o.description, prefill: o.prefill, notes: o.notes,
+        theme: { color: "#2563eb" },
+        handler: async (resp) => {
+          setOpen(true); setStage("processing");
+          try {
+            await api("/me/fee/verify", { method: "POST", body: resp });
+            await load();
+            setStage("done");
+          } catch (e) { setOpen(false); setError(e.message); }
+        },
+        modal: { ondismiss: () => setError("Payment cancelled. You can try again any time.") },
+      });
+      rzp.on("payment.failed", (r) => setError(`Payment failed: ${r.error?.description || "please try again"}`));
+      rzp.open();
+    } catch (e) { setError(e.message); }
+  };
+
   const close = () => {
     if (stage === "processing") return;
     setOpen(false);
@@ -64,7 +102,15 @@ export default function FeeCard({ me, onPaid }) {
         <>
           <p><span className="fee-amount">{rupees(fee.amount)}</span> <span className="muted">for the academic year</span></p>
           <p className="small muted">Pay your fee to book a seat on the bus. Payment goes to the college.</p>
-          <button className="btn primary" onClick={() => { setOpen(true); setStage("choose"); }}>Pay now</button>
+          {fee.gateway === "razorpay" ? (
+            <>
+              <button className="btn primary" onClick={payRazorpay}>Pay now</button>
+              <p className="small muted">Secure payment by Razorpay: UPI, cards, net banking.
+                {fee.test_mode && <strong> Test mode: no real money is charged.</strong>}</p>
+            </>
+          ) : (
+            <button className="btn primary" onClick={() => { setOpen(true); setStage("choose"); }}>Pay now</button>
+          )}
         </>
       )}
       {fee.paid && fee.receipt && (

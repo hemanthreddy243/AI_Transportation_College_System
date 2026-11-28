@@ -102,6 +102,27 @@ cd ../backend && uvicorn app.main:app --host 0.0.0.0 --port 8000
   configurable % of savings, which is what the college pays for the service. Demo history is
   included so the page isn't empty before a pilot, and the admin can clear it with one click.
 
+### Razorpay setup (real payments)
+
+1. Sign up at https://dashboard.razorpay.com. In **Test Mode**, go to **Account & Settings → API Keys**
+   and generate a key.
+2. Copy `backend/.env.example` to `backend/.env` (git ignores it) and fill in `RAZORPAY_KEY_ID`
+   and `RAZORPAY_KEY_SECRET`. Restart the server. Students now get Razorpay's checkout.
+   Test-mode payments use Razorpay's test UPI, cards and net banking, and move no real money.
+3. **Webhook** (recommended): in Razorpay, go to **Webhooks**, add
+   `https://<your-site>/api/payments/razorpay/webhook` with the events `payment.captured` and
+   `order.paid`, and set the same secret in `RAZORPAY_WEBHOOK_SECRET`. This records payments even
+   when a student closes the tab before returning to the site.
+4. On Render, set the same three values in the service's Environment tab.
+5. **Going live:** switch to live keys from the **college's own** Razorpay account, after
+   Razorpay's business verification. Fees then settle directly to the college, and the platform
+   never holds student money.
+
+How a payment is checked: the server creates the order, so the amount can't be changed in the
+browser. It marks the fee paid only after verifying Razorpay's HMAC signature and confirming the
+paid amount. The webhook is signature-checked too, and both paths are idempotent, so nothing is
+counted twice.
+
 ## Live bus tracking
 
 - The driver page sends phone GPS (`navigator.geolocation`). The server snaps each fix onto the

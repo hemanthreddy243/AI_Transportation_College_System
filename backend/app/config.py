@@ -3,6 +3,22 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _load_dotenv(path: Path):
+    """Read KEY=VALUE lines from backend/.env (git-ignored). Real environment variables win."""
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_dotenv(BASE_DIR / ".env")
+
 DATA_DIR = Path(os.getenv("DATA_DIR", BASE_DIR / "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -52,5 +68,14 @@ CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-opus-5-5")
 AI_ENABLED = os.getenv("AI_ENABLED", "1") == "1"
 
 SEED_SCALE = os.getenv("SEED_SCALE", "demo")  # demo data created on first start
+
+# Payments: Razorpay. Leave the keys empty to use the built-in demo checkout.
+# Test keys (rzp_test_...) use Razorpay's real checkout without moving real money.
+# In production these must be the COLLEGE's own Razorpay account keys, so fees settle to the college.
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
+RAZORPAY_API = os.getenv("RAZORPAY_API", "https://api.razorpay.com/v1")
+COLLEGE_DISPLAY_NAME = os.getenv("COLLEGE_DISPLAY_NAME", "College Transport")
 
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")

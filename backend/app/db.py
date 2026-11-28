@@ -130,6 +130,9 @@ MIGRATIONS = [  # (table, column, definition) added after the first release
     ("bus_locations", "heading", "REAL"),
     ("bus_locations", "offset_m", "REAL"),     # distance from the planned route line
     ("bus_locations", "accuracy_m", "REAL"),   # GPS accuracy reported by the phone
+    ("payments", "gateway", "TEXT"),           # 'demo' or 'razorpay'
+    ("payments", "order_id", "TEXT"),          # Razorpay order id (order_...)
+    ("payments", "payment_id", "TEXT"),        # Razorpay payment id (pay_...)
 ]
 
 

@@ -14,3 +14,11 @@ services:
         value: demo       # or "large" (32 stops, 1500 students, 30 buses)
       - key: ANTHROPIC_API_KEY
         sync: false       # optional: paste your key in the Render dashboard for AI briefings
+      - key: RAZORPAY_KEY_ID
+        sync: false       # college's Razorpay key id (rzp_test_... while testing)
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false       # same secret as the webhook in the Razorpay dashboard
+      - key: COLLEGE_DISPLAY_NAME
+        value: College Transport

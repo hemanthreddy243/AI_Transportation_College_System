@@ -133,7 +133,9 @@ export function PaymentsTab() {
       <section className="card">
         <div className="row between wrap">
           <h2>Transport fee · {d.academic_year}</h2>
-          <span className="badge">demo gateway</span>
+          <span className={`badge ${d.gateway === "razorpay" && !d.test_mode ? "ok" : ""}`}>
+            {d.gateway === "razorpay" ? (d.test_mode ? "Razorpay · test mode" : "Razorpay · live") : "demo gateway"}
+          </span>
         </div>
         <div className="tiles">
           <div className="tile"><div className="tile-v">{d.paid_count}<span className="tile-sub">/{d.students_total}</span></div><div className="tile-l">students paid ({pct}%)</div></div>
