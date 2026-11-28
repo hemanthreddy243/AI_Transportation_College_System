@@ -184,7 +184,8 @@ export default function StudentHome({ me }) {
 
       <section className="card">
         <h3>Will you take the bus?</h3>
-        {!poll && <p className="muted">No trip is scheduled yet.</p>}
+        {!pollData && <p className="muted">Loading…</p>}
+        {pollData && !poll && <p className="muted">No trip is scheduled yet.</p>}
         {poll && (
           <>
             <p>
