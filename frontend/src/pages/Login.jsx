@@ -33,6 +33,7 @@ export default function Login({ onLoggedIn }) {
         <button className="btn primary" disabled={busy}>{busy ? "Logging in…" : "Log in"}</button>
       </form>
       <p className="muted small">New student? <Link to="/register">Register with your Student ID</Link></p>
+      <p className="small muted"><a href="/privacy.html">Privacy policy</a></p>
       <details className="small muted">
         <summary>Demo accounts</summary>
         admin / admin123 · driver1 … driver10 / driver123 · pre-registered students / student123

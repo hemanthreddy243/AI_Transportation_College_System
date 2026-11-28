@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Bus · Privacy Policy</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <style>
+    :root { --bg: #f4f6fb; --card: #fff; --text: #111827; --muted: #6b7280; --border: #e5e7eb; --primary: #2563eb; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0b1020; --card: #141a2e; --text: #e5e7eb; --muted: #9ca3af; --border: #273049; --primary: #3b82f6; } }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+    article { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+    h1 { margin: 0 0 4px; font-size: 1.7rem; }
+    h2 { margin: 28px 0 8px; font-size: 1.15rem; }
+    .muted { color: var(--muted); }
+    a { color: var(--primary); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  </style>
+</head>
+<body>
+<main>
+  <p><a href="/">← Smart Bus</a></p>
+  <article>
+    <h1>Privacy Policy</h1>
+    <p class="muted">Smart Bus (website and Android app "Smart Bus", package in.smartbus.app) · Last updated: 28 November 2026</p>
+
+    <p>Smart Bus helps a college plan its buses from students' daily ride choices, collect transport fees and
+      show students where their bus is. This policy explains what data the service uses and why. The college
+      that uses Smart Bus decides how its students' data is used; Smart Bus processes that data on the college's behalf.</p>
+
+    <h2>Data we use</h2>
+    <table>
+      <tr><th>Data</th><th>Whose</th><th>Why</th></tr>
+      <tr><td>Student ID, name, designated bus stop, transport-fee status</td><td>Students</td>
+        <td>Read from the college's records to verify registration, plan routes and allow seat booking.</td></tr>
+      <tr><td>Password (stored only as a salted hash)</td><td>All users</td><td>To log in.</td></tr>
+      <tr><td>Daily "Yes / No" ride choice</td><td>Students</td><td>To count riders per stop and assign seats.</td></tr>
+      <tr><td>Bus and seat assignment</td><td>Students</td><td>To show each student their bus.</td></tr>
+      <tr><td>Precise location (GPS)</td><td><strong>Drivers only</strong>, while they share a trip</td>
+        <td>To show students where their bus is and estimate arrival times. Students' location is never collected.</td></tr>
+      <tr><td>Fee payments: amount, date, method, gateway reference</td><td>Students who pay online</td>
+        <td>To record the payment and mark the fee as paid. Card, UPI and bank details are entered on Razorpay's
+          checkout and are never seen or stored by Smart Bus.</td></tr>
+      <tr><td>Mobile number</td><td>Students who pay online</td><td>Collected by Razorpay during checkout, as required for payments.</td></tr>
+    </table>
+
+    <h2>Who we share it with</h2>
+    <ul>
+      <li><strong>The college</strong> (transport office and administrators) sees ride choices, assignments, bus locations and fee payments.</li>
+      <li><strong>Razorpay</strong> processes online payments under its own privacy policy (<a href="https://razorpay.com/privacy/">razorpay.com/privacy</a>).</li>
+      <li><strong>Hosting and routing providers</strong> run the servers and calculate road routes from bus-stop coordinates
+        (no personal data is sent for routing).</li>
+    </ul>
+    <p>We do not sell personal data and do not use it for advertising.</p>
+
+    <h2>How long we keep it</h2>
+    <p>Account and payment records are kept for as long as the college uses the service and as required for its accounting.
+      Bus GPS history is kept only as long as needed for trip records. The college can ask for data to be deleted.</p>
+
+    <h2>Security</h2>
+    <p>Data is sent over HTTPS. Passwords are hashed. Payments are verified with the payment gateway's cryptographic
+      signature before a fee is marked as paid.</p>
+
+    <h2>Your choices and rights</h2>
+    <p>You can stop using the app at any time. Drivers can stop sharing location at any time from the driver screen,
+      and can deny location permission in Android settings. To see, correct or delete your data, contact your
+      college transport office, which will pass the request to us. Under India's Digital Personal Data Protection
+      Act, 2023, you may also withdraw consent and raise grievances through the college.</p>
+
+    <h2>Children</h2>
+    <p>Smart Bus is intended for college students and staff. It is not designed for children under 13.</p>
+
+    <h2>Changes</h2>
+    <p>We will update this page when the policy changes and change the "Last updated" date above.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy: contact your college transport office, or the Smart Bus team through the
+      project page at <a href="https://github.com/hemanthreddy243/AI_Transportation_College_System">github.com/hemanthreddy243/AI_Transportation_College_System</a>.</p>
+  </article>
+</main>
+</body>
+</html>
