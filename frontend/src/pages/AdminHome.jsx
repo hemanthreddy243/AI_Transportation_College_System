@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, fmtDate, fmtDateTime, timeAgo } from "../api.js";
 import Markdown from "../components/Markdown.jsx";
+import { PaymentsTab, SavingsTab } from "./AdminMoney.jsx";
 import RouteMap, { ROUTE_COLORS, fmtMinutes, routeToLine } from "../components/RouteMap.jsx";
 import { ageSeconds, fmtEta, useLive } from "../live.js";
 
@@ -89,6 +90,7 @@ export default function AdminHome() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [showNew, setShowNew] = useState(false);
+  const [tab, setTab] = useState("trips");
   const { byBus: fleetLive, connected } = useLive("/ws/fleet");
 
   const loadPolls = async () => {
@@ -129,8 +131,18 @@ export default function AdminHome() {
   const fleetStates = plan ? plan.routes.map((r) => fleetLive[r.bus_id]) : [];
   const countState = (f) => fleetStates.filter(f).length;
 
+  const TABS = [["trips", "🗺 Trips"], ["savings", "💰 Savings"], ["payments", "🧾 Payments"], ["fleet", "🚌 Fleet"]];
   return (
     <div className="stack">
+      <nav className="tabs">
+        {TABS.map(([id, label]) => (
+          <button key={id} className={`tab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>{label}</button>
+        ))}
+      </nav>
+      {tab === "savings" && <SavingsTab />}
+      {tab === "payments" && <PaymentsTab />}
+      {tab === "fleet" && <Buses buses={buses} reload={loadBuses} />}
+      {tab === "trips" && (<>
       <section className="card">
         <div className="row between wrap">
           <h2>Trip planning</h2>
@@ -245,7 +257,7 @@ export default function AdminHome() {
         </>
       )}
 
-      <Buses buses={buses} reload={loadBuses} />
+      </>)}
     </div>
   );
 }

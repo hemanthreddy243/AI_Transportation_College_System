@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, fmtDate, fmtDateTime } from "../api.js";
 import RouteMap, { fmtMinutes, routeToLine, splitAt } from "../components/RouteMap.jsx";
 import { ageSeconds, clockIn, fmtDistance, fmtEta, useLive } from "../live.js";
+import FeeCard from "../components/FeeCard.jsx";
 
 function useInterval(fn, ms, deps = []) {
   useEffect(() => {
@@ -46,6 +47,7 @@ export default function StudentHome({ me }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [notify, setNotify] = useState(false);
+  const [feePaid, setFeePaid] = useState(me.fee_paid);
   const notified = useRef(false);
 
   const loadPoll = () => api("/polls/current").then(setPollData).catch((e) => setError(e.message));
@@ -106,10 +108,12 @@ export default function StudentHome({ me }) {
         <div className="profile-meta">
           <div><span className="muted small">Your stop</span><br /><strong>{me.stop?.name ?? "—"}</strong></div>
           <div><span className="muted small">Transport fee</span><br />
-            <span className={`badge ${me.fee_paid ? "ok" : "bad"}`}>{me.fee_paid ? "Paid" : "Pending"}</span>
+            <span className={`badge ${feePaid ? "ok" : "bad"}`}>{feePaid ? "Paid" : "Pending"}</span>
           </div>
         </div>
       </section>
+
+      {!feePaid && <FeeCard me={me} onPaid={() => { setFeePaid(true); loadPoll(); }} />}
 
       {bus?.assigned && (
         <section className="card">
@@ -213,6 +217,8 @@ export default function StudentHome({ me }) {
         )}
         {error && <div className="alert error">{error}</div>}
       </section>
+
+      {feePaid && <FeeCard me={me} />}
 
       {bus && !bus.assigned && (
         <section className="card">

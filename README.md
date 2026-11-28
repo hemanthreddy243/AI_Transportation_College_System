@@ -89,6 +89,19 @@ cd frontend && npm run build      # FastAPI serves frontend/dist automatically
 cd ../backend && uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
+## Fee payments and savings
+
+- **Students** can register even if their transport fee is pending. They can pay from the
+  dashboard and get a printable receipt, but they can't book a seat until the fee is paid.
+  Checkout is a **demo**: no real money moves and no payment details are collected. At setup, a
+  real gateway (for example Razorpay or Cashfree, settling into the college's account) replaces
+  it, and the fee is then marked paid only after the gateway's signed confirmation.
+- **Admins** get a Payments tab (paid and pending students, money collected, recent payments) and
+  a Savings tab. Every planned trip records the diesel and money saved compared with the college's
+  old way of running a fixed number of buses daily. The tab also shows the **platform fee**, a
+  configurable % of savings, which is what the college pays for the service. Demo history is
+  included so the page isn't empty before a pilot, and the admin can clear it with one click.
+
 ## Live bus tracking
 
 - The driver page sends phone GPS (`navigator.geolocation`). The server snaps each fix onto the

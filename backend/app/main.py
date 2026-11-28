@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from . import config
 from .ai_agent import explain_plan
+from . import billing
 from .auth import create_token, current_user, hash_password, require_role, verify_password
 from .college_db import get_directory
 from .db import get_db, session
@@ -31,6 +32,7 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="Smart College Bus Planner", lifespan=lifespan)
+app.include_router(billing.router)
 app.add_middleware(
     CORSMiddleware, allow_origins=config.CORS_ORIGINS, allow_methods=["*"], allow_headers=["*"]
 )
@@ -96,7 +98,6 @@ def plan_view(db, poll_id: int) -> dict | None:
             "geometry": json.loads(r["geometry_json"]) if r["geometry_json"] else None,
         })
     total_km = plan["total_km"]
-    avg_km = total_km / len(routes) if routes else 0
     unserved = json.loads(plan["unserved_json"])
     return {
         "poll_id": poll_id, "created_at": plan["created_at"], "solver": plan["solver"],
@@ -105,7 +106,9 @@ def plan_view(db, poll_id: int) -> dict | None:
         "total_km": total_km,
         "est_diesel_litres": round(total_km / config.BUS_KM_PER_LITRE, 1),
         # Estimate: idle buses would each have driven an average-length route.
-        "est_saving_litres": round((plan["fleet_size"] - plan["buses_used"]) * avg_km / config.BUS_KM_PER_LITRE, 1),
+        # vs. the college's old way: `baseline_buses` running every day (admin setting)
+        "est_saving_litres": billing.compute_savings(total_km, plan["buses_used"], billing.baseline_buses(db),
+                                                     float(billing.get_settings(db)["diesel_price"]))["litres_saved"],
         "unserved": {stops[k]["name"]: v for k, v in unserved.items()},
         "routes": routes,
         "campus": {"name": config.CAMPUS_NAME, "lat": config.CAMPUS_LAT, "lng": config.CAMPUS_LNG},
@@ -139,8 +142,7 @@ def register(body: RegisterIn, db=Depends(get_db)):
         raise HTTPException(400, "Student ID not found in college records")
     if record.name.strip().lower() != body.name.strip().lower():
         raise HTTPException(400, "Name does not match college records for this Student ID")
-    if not record.fee_paid:
-        raise HTTPException(403, "Transport fee is pending. Please clear it at the accounts office to register.")
+    # Students with a pending fee may register and pay online; they can't book a seat until paid.
     if db.execute("SELECT 1 FROM users WHERE username = ?", (sid,)).fetchone():
         raise HTTPException(409, "This Student ID is already registered. Please log in.")
     db.execute(
@@ -207,7 +209,7 @@ def vote(poll_id: int, body: VoteIn, user=Depends(require_role("student")), db=D
         raise HTTPException(400, f"Voting is {status}. It is open from {poll['opens_at']} to {poll['closes_at']}.")
     rec = get_directory().lookup(user["username"])
     if rec is None or not rec.fee_paid:  # re-check: fee status can change after registration
-        raise HTTPException(403, "Transport fee is pending; you cannot book a seat.")
+        raise HTTPException(403, "Your transport fee is pending. Pay it from your dashboard to book a seat.")
     db.execute(
         """INSERT INTO votes (poll_id, username, stop_id, going, voted_at) VALUES (?,?,?,?,?)
            ON CONFLICT(poll_id, username) DO UPDATE SET going = excluded.going,
@@ -440,6 +442,7 @@ def run_planner(poll_id: int, _=Depends(admin), db=Depends(get_db)):
                 db.execute("INSERT INTO assignments VALUES (?,?,?)", (poll_id, v["username"], slot[0]))
                 break
 
+    billing.record_plan_savings(db, plan_id)
     view = plan_view(db, poll_id)
     summary = explain_plan({k: v for k, v in view.items() if k != "ai_summary"})
     db.execute("UPDATE plans SET ai_summary = ? WHERE id = ?", (summary, plan_id))

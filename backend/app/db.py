@@ -79,6 +79,35 @@ CREATE TABLE IF NOT EXISTS bus_positions (     -- GPS history, for audits and re
     progress_m REAL
 );
 CREATE INDEX IF NOT EXISTS idx_bus_positions ON bus_positions (bus_id, ts);
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS payments (           -- transport-fee payments (demo gateway for now)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    academic_year TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    method TEXT NOT NULL,
+    status TEXT NOT NULL,
+    reference TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS trip_savings (       -- what each published trip saved (basis of platform fee)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    poll_id INTEGER,
+    trip_date TEXT NOT NULL,
+    riders INTEGER NOT NULL,
+    buses_used INTEGER NOT NULL,
+    baseline_buses INTEGER NOT NULL,
+    actual_km REAL NOT NULL,
+    baseline_km REAL NOT NULL,
+    diesel_price REAL NOT NULL,
+    litres_saved REAL NOT NULL,
+    rupees_saved INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    demo INTEGER NOT NULL DEFAULT 0
+);
 """
 
 

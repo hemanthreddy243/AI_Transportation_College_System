@@ -24,6 +24,7 @@ class CollegeStudent:
 class CollegeDirectory(Protocol):
     def lookup(self, student_id: str) -> CollegeStudent | None: ...
     def all_students(self) -> list[CollegeStudent]: ...
+    def mark_fee_paid(self, student_id: str) -> None: ...
 
 
 class MockSqliteDirectory:
@@ -60,6 +61,11 @@ class MockSqliteDirectory:
     def all_students(self) -> list[CollegeStudent]:
         with self._conn() as c:
             return [self._row(r) for r in c.execute("SELECT * FROM students")]
+
+    def mark_fee_paid(self, student_id: str) -> None:
+        # Real integration: write back to the college ERP (or let the accounts office reconcile).
+        with self._conn() as c:
+            c.execute("UPDATE students SET fee_paid = 1 WHERE student_id = ?", (student_id.strip().upper(),))
 
 
 _directory: CollegeDirectory | None = None

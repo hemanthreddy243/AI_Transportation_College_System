@@ -129,6 +129,10 @@ def seed(reset: bool = False, scale: str = "demo"):
                 (s.student_id, s.name, student_hash),
             )
 
+        # Demo savings history (marked demo; the admin can clear it before a real pilot).
+        from .billing import seed_demo_savings
+        seed_demo_savings(db)
+
         # An open poll for tomorrow's morning trip.
         now = datetime.now().replace(second=0, microsecond=0)
         db.execute(

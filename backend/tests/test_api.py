@@ -43,8 +43,7 @@ def test_full_flow(client):
 
     r = client.post("/api/auth/register", json={"student_id": "NOPE123", "name": "X Y", "password": "secret1"})
     assert r.status_code == 400
-    r = client.post("/api/auth/register", json={"student_id": unpaid.student_id, "name": unpaid.name, "password": "secret1"})
-    assert r.status_code == 403
+    # unpaid students may register (and pay online) but can't vote until paid - see test_fee_payment
     r = client.post("/api/auth/register", json={"student_id": unregistered.student_id, "name": "Wrong Name", "password": "secret1"})
     assert r.status_code == 400
     r = client.post("/api/auth/register", json={"student_id": unregistered.student_id.lower(), "name": unregistered.name, "password": "secret1"})
@@ -122,3 +121,55 @@ def test_full_flow(client):
 
     # --- role checks
     assert client.get("/api/admin/buses", headers=me).status_code == 403
+
+
+def test_fee_payment_and_savings(client):
+    from app.college_db import get_directory
+
+    unpaid = next(s for s in get_directory().all_students() if not s.fee_paid)
+    r = client.post("/api/auth/register", json={"student_id": unpaid.student_id, "name": unpaid.name, "password": "secret1"})
+    assert r.status_code == 200
+    me = {"Authorization": f"Bearer {r.json()['token']}"}
+    admin = login(client, "admin", "admin123")
+
+    poll = client.get("/api/polls/current", headers=me).json()["poll"]
+    assert client.post(f"/api/polls/{poll['id']}/vote", json={"going": True}, headers=me).status_code == 403
+
+    fee = client.get("/api/me/fee", headers=me).json()
+    assert fee["paid"] is False and fee["amount"] > 0 and fee["demo"] is True
+    before = client.get("/api/admin/payments", headers=admin).json()
+    assert client.post("/api/me/fee/pay", json={"method": "bitcoin"}, headers=me).status_code == 422
+    receipt = client.post("/api/me/fee/pay", json={"method": "upi"}, headers=me).json()["receipt"]
+    assert receipt["amount"] == fee["amount"] and receipt["reference"].startswith("DEMO-")
+    assert client.post("/api/me/fee/pay", json={"method": "upi"}, headers=me).status_code == 409  # no double charge
+    assert client.get("/api/me/fee", headers=me).json()["paid"] is True
+    assert client.post(f"/api/polls/{poll['id']}/vote", json={"going": True}, headers=me).status_code == 200
+
+    after = client.get("/api/admin/payments", headers=admin).json()
+    assert after["paid_count"] == before["paid_count"] + 1
+    assert after["online_amount"] == before["online_amount"] + fee["amount"]
+    assert after["recent"][0]["username"] == unpaid.student_id
+
+    # savings: demo history exists; a published plan adds a real (non-demo) record
+    sv = client.get("/api/admin/savings", headers=admin).json()
+    assert sv["totals"]["demo_trips"] > 0
+    assert client.post("/api/admin/savings/clear-demo", headers=admin).json()["removed"] == sv["totals"]["demo_trips"]
+    client.put("/api/admin/settings", headers=admin, json={"academic_year": "2026-27", "transport_fee": 24000,
+               "diesel_price": 100, "baseline_buses": 10, "platform_fee_pct": 20})
+    client.post(f"/api/admin/polls/{poll['id']}/simulate-votes", json={"turnout": 0.6}, headers=admin)
+    client.post(f"/api/admin/polls/{poll['id']}/close", headers=admin)
+    plan = client.post(f"/api/admin/polls/{poll['id']}/plan", headers=admin).json()
+    sv = client.get("/api/admin/savings", headers=admin).json()
+    t = sv["totals"]
+    assert t["trips"] == 1 and t["demo_trips"] == 0
+    row = sv["trips"][0]
+    assert row["buses_used"] == plan["buses_used"] and row["baseline_buses"] == 10
+    expected_litres = (10 * plan["total_km"] / plan["buses_used"] - plan["total_km"]) / 4.0
+    assert abs(row["litres_saved"] - expected_litres) < 0.2
+    assert abs(t["rupees_saved"] - expected_litres * 100) < 25
+    assert t["platform_fee"] == round(t["rupees_saved"] * 0.2)
+    # re-planning the same trip replaces its record instead of double counting
+    client.post(f"/api/admin/polls/{poll['id']}/plan", headers=admin)
+    assert client.get("/api/admin/savings", headers=admin).json()["totals"]["trips"] == 1
+    # students can't see admin money pages
+    assert client.get("/api/admin/savings", headers=me).status_code == 403
