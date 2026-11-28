@@ -1,5 +1,7 @@
 # Smart Bus — demand-based college bus planning
 
+[![tests](https://github.com/hemanthreddy243/AI_Transportation_College_System/actions/workflows/tests.yml/badge.svg)](https://github.com/hemanthreddy243/AI_Transportation_College_System/actions/workflows/tests.yml)
+
 Students vote each evening whether they'll take the bus tomorrow. When voting closes, a routing
 agent combines stops into the **fewest buses that fit everyone without exceeding any bus's seats**,
 assigns every student to a specific bus, and that student can then **track their bus live**.
